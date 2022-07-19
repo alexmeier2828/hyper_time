@@ -4,9 +4,13 @@ use std::collections::HashMap;
 use chrono::{DateTime, Local};
 use std::io::Write;
 
-use serde::Serialize;
-use serializable::serializable;
+use serde::{Serialize, Deserialize};
 
+use serde::ser::Serialize as CustomSerialize;
+use serde::ser::Serializer;
+use serde::ser::SerializeStruct;
+
+#[derive(Serialize)]
 pub enum ActionType {
     START,
     STOP
@@ -22,6 +26,7 @@ pub struct TaskAction {
 
 /// Object representing a time card.  Time cards can have multiple tasks, but only one will be
 /// active at a given time.  
+#[derive(Serialize)]
 pub struct TimeCard {
     current_task: String,
     is_active: bool,
@@ -80,25 +85,13 @@ impl TimeCard {
     }
 }
 
-impl std::fmt::Display for TimeCard {
+impl std::fmt::Display for TimeCard{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let task = &self.current_task;
-        let active = self.is_active;
-        let mut result: String = format!("current_task: {task}, is_active: {active}");
-        
-
-        for (key, value) in &self.tasks_by_name {
-            result.push_str(&format!("{key} -------- \n"));
-
-            for item in value {
-                result.push_str(&format!("{item}\n"));
-            }
-        }
-
-        write!(f, "{}", result)
+        let string = serde_json::to_string(self).unwrap();
+        write!(
+            f,"{}", &string )
     }
 }
-
 impl std::fmt::Display for TaskAction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -119,8 +112,14 @@ impl std::fmt::Display for ActionType {
     }
 }
 
-impl serializable for TimeCard {
-    fn serialize(&self) -> &'static str {
-        serde_json::from_str(self).unwrap();
+impl CustomSerialize for TaskAction{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("TaskAction", 2)?;
+        state.serialize_field("action_type", &self.action_type)?;
+        state.serialize_field("time", &self.time.timestamp())?;
+        state.end()
     }
 }
