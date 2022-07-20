@@ -1,12 +1,15 @@
 mod time_card;
-use time_card::TimeCard;
+mod event;
+mod journal;
+use journal::{Journal, EventType};
+
 
 fn main() {
-    let mut time_card = TimeCard::new();
+    let mut journal = Journal::new();
+    
+    journal.log_event("SS-12345".to_owned(), EventType::START);
+    journal.log_event("SS-12345".to_owned(), EventType::STOP);
 
-    time_card.clock_in("task".to_string());
-    println!("{}", time_card);
-    time_card.clock_out("task".to_string());
-    println!("{}", time_card);
+    print!("{}", journal);
 }
 

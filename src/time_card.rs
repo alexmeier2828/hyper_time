@@ -2,10 +2,7 @@ use std::fmt;
 use std::vec::Vec;
 use std::collections::HashMap;
 use chrono::{DateTime, Local};
-use std::io::Write;
-
-use serde::{Serialize, Deserialize};
-
+use serde::Serialize;
 use serde::ser::Serialize as CustomSerialize;
 use serde::ser::Serializer;
 use serde::ser::SerializeStruct;
