@@ -1,13 +1,14 @@
-#[path = "event.rs"] mod event;
 #[path = "time_card.rs"] mod time_card;
 
 use std::vec::Vec; 
 use std::fmt;
 use chrono::Local;
-use event::Event;
+use timespan::DateTimeSpan;
 
-pub use event::EventType;
+// public namespaces 
+pub use time_card::{TimeCard, Event, EventType};
 
+/// Represents a list of timed events 
 pub struct Journal {
     events: Vec<Event>
 }
@@ -26,6 +27,19 @@ impl Journal {
             key.to_string());
 
         self.events.push(event);
+    }
+
+    /// creates a time card for the specified time span
+    pub fn get_timecard_for_timespan(&self, timespan: DateTimeSpan<Local>) -> TimeCard{
+        let mut card = TimeCard::new();
+        
+        for event in &self.events {
+            if timespan.contains(&event.time.unwrap()){
+                card.add_event(event);
+            }
+        }
+
+        return card;
     }
 }
 

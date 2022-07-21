@@ -1,13 +1,13 @@
+#[path = "event.rs"] mod event;
+
 use std::fmt; 
 use std::vec::Vec;
 use std::collections::HashMap;
 use chrono::{DateTime, Local};
-use serde::Serialize;
-use serde::ser::Serialize as CustomSerialize;
-use serde::ser::Serializer;
-use serde::ser::SerializeStruct;
+use serde::{Serialize, Deserialize};
+pub use event::{Event, EventType};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub enum ActionType {
     START,
     STOP
@@ -16,17 +16,17 @@ pub enum ActionType {
 /// Object representing an action taken for a task, for example:
 /// * Clocking in 
 /// * Clocking out 
+#[derive(Serialize, Deserialize)]
 pub struct TaskAction {
     action_type: ActionType,
-    time: DateTime<Local>
+    time: Option<DateTime<Local>>
 }
 
 /// Object representing a time card.  Time cards can have multiple tasks, but only one will be
 /// active at a given time.  
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TimeCard {
     current_task: String,
-    is_active: bool,
     tasks_by_name: HashMap<String, Vec<TaskAction>>
 }
 
@@ -34,50 +34,29 @@ impl TimeCard {
     pub fn new() -> TimeCard {
         TimeCard{
             current_task: "".to_string(),
-            is_active: false,
             tasks_by_name: HashMap::new()
         }
     }
 
-    /// Clock in to a task given a string
-    pub fn clock_in(&mut self, task: String){
-        self.current_task = task.clone();
-        self.is_active = true;
-    
-        let action =  TaskAction {
-            action_type: ActionType::START,
-            time: Local::now()
-        };
-        
-        if let Some(action_list) = self.tasks_by_name.get_mut(&task){
-            action_list.push(action);
-        }
-        else 
-        {
-            let mut new_action_list = Vec::new();
-            new_action_list.push(action);
-            self.tasks_by_name.insert(task, new_action_list);
-        }
-    }
 
-    /// Clock out of a given task with a string
-    pub fn clock_out(&mut self, task: String){
-        self.current_task = "".to_string();
-        self.is_active = false;
-
-        let action =  TaskAction {
-            action_type: ActionType::STOP,
-            time: Local::now()
+    /// Parse event into time card.  Sorts by event key
+    pub fn add_event(&mut self, event: &Event){
+        let action_type = match event.event_type {
+            EventType::START => ActionType::START,
+            EventType::STOP => ActionType::STOP
         };
-        
-        if let Some(action_list) = self.tasks_by_name.get_mut(&task){
-            action_list.push(action);
-        }
-        else 
-        {
-            let mut new_action_list = Vec::new();
-            new_action_list.push(action);
-            self.tasks_by_name.insert(task, new_action_list);
+
+        let action = TaskAction {
+            action_type,
+            time: event.time.clone() 
+        };
+
+        if self.tasks_by_name.contains_key(&event.key){
+            self.tasks_by_name.get_mut(&event.key).unwrap().push(action);
+        } else {
+            let mut new_list = Vec::new();
+            new_list.push(action);
+            self.tasks_by_name.insert(event.key.clone(), new_list);
         }
     }
 }
@@ -95,7 +74,7 @@ impl std::fmt::Display for TaskAction {
             f, 
             "action_type: {} time: {}", 
             self.action_type,
-            self.time.format("%Y-%m-%d][%H:%M:%S")
+            self.time.unwrap().format("%Y-%m-%d][%H:%M:%S")
             )
     }
 }
@@ -106,17 +85,5 @@ impl std::fmt::Display for ActionType {
             ActionType::START => write!(f, "Start"),
             ActionType::STOP => write!(f, "Stop")
         }
-    }
-}
-
-impl CustomSerialize for TaskAction{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("TaskAction", 2)?;
-        state.serialize_field("action_type", &self.action_type)?;
-        state.serialize_field("time", &self.time.timestamp())?;
-        state.end()
     }
 }
