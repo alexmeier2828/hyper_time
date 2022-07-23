@@ -31,15 +31,8 @@ impl Journal {
 
     /// creates a time card for the specified time span
     pub fn get_timecard_for_timespan(&self, timespan: DateTimeSpan<Local>) -> TimeCard{
-        let mut card = TimeCard::new();
-        
-        for event in &self.events {
-            if timespan.contains(&event.time.unwrap()){
-                card.add_event(event);
-            }
-        }
-
-        return card;
+        let filtered_events = get_events_for_timespan(self.events.clone(), timespan);
+        TimeCard::new(filtered_events)
     }
 }
 
@@ -49,4 +42,17 @@ impl std::fmt::Display for Journal {
 
         write!(f, "{}", json)
     }
+}
+
+/// returns the events that occured within the given timespan
+fn get_events_for_timespan(events: Vec<Event>, timespan: DateTimeSpan<Local>) -> Vec<Event> {
+    let mut filtered_events = Vec::new();
+    
+    for event in events{
+        if timespan.contains(&event.time.unwrap()) {
+            filtered_events.push(event)
+        }
+    }
+
+    return filtered_events;
 }

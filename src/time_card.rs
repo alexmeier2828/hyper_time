@@ -26,23 +26,33 @@ pub struct TaskAction {
 /// active at a given time.  
 #[derive(Serialize, Deserialize)]
 pub struct TimeCard {
-    current_task: String,
-    tasks_by_name: HashMap<String, Vec<TaskAction>>
+    pub current_task: String,
+    tasks_by_name: HashMap<String, Vec<TaskAction>>,
 }
 
 impl TimeCard {
-    pub fn new() -> TimeCard {
-        TimeCard{
+    pub fn new(events: Vec<Event>) -> TimeCard {
+
+        let mut time_card = TimeCard{
             current_task: "".to_string(),
             tasks_by_name: HashMap::new()
+        };
+
+        for event in events {
+            time_card.add_event(&event);
         }
+
+        return time_card;
     }
 
 
     /// Parse event into time card.  Sorts by event key
-    pub fn add_event(&mut self, event: &Event){
+    fn add_event(&mut self, event: &Event){
         let action_type = match event.event_type {
-            EventType::START => ActionType::START,
+            EventType::START => {
+                self.current_task = event.key.clone();
+                ActionType::START
+            },
             EventType::STOP => ActionType::STOP
         };
 
@@ -58,6 +68,7 @@ impl TimeCard {
             new_list.push(action);
             self.tasks_by_name.insert(event.key.clone(), new_list);
         }
+
     }
 }
 
@@ -85,5 +96,33 @@ impl std::fmt::Display for ActionType {
             ActionType::START => write!(f, "Start"),
             ActionType::STOP => write!(f, "Stop")
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_returns_empty_time_card(){
+        let empty_event_list = Vec::new();
+        let time_card = TimeCard::new(empty_event_list);
+        assert!(time_card.current_task == "")
+    }
+
+    #[test]
+    fn multiple_events_one_in_progress(){
+        let mut events = Vec::with_capacity(10);
+        events.push(get_event("event1", EventType::START));
+        events.push(get_event("event1", EventType::STOP));
+        events.push(get_event("event2", EventType::START));
+
+        let time_card = TimeCard::new(events);
+        
+        assert_eq!("event2", time_card.current_task);
+    }
+
+    fn get_event(key: &str, event_type: EventType) -> Event{
+        Event::new(Local::now(), event_type, key.to_owned())
     }
 }
